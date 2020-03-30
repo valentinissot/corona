@@ -1,7 +1,7 @@
 corona
 ==============================
 
-coronavirus project
+coronavirus project salut
 
 Project Organization
 ------------
