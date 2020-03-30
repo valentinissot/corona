@@ -7,8 +7,11 @@ Organisation du projet
 ------------
 
 Notebooks: Ensemble des notebooks jupyter pour l'étude et le traitement des données du coronavirus.
+
     - Corona_collecte_donnees.ipynb: Récupération des données et mis en forme d'une table réunissant l'ensemble des données.
+    
     - Corona_visualisation.ipynb: Ensemble de graphiques permettant l'étude comparative de l'évolution des données par pays.
+    
     - Corona_modélisation.ipynb: Application du modèle SIR sur les données. 
     
 Src - app.py: Réalisation d'une application Dash avec trois pages pour la visualisation graphique de l'évolution des données 
