@@ -117,8 +117,9 @@ app.layout = html.Div([
                     id='variable6',
                     options=[
                         {'label': 'Optimisation', 'value': 'Optimisation'},
+                        {'label': 'No optimisation', 'value': 'No optimisation'}
                     ],
-                    value=None,
+                    value='No optimisation',
                     labelStyle={'display': 'inline-block'}
                 ),
                 daq.NumericInput(
@@ -142,7 +143,7 @@ app.layout = html.Div([
                     size=75,
                     max=100,
                     min=0.001,
-                     value=0.1
+                    value=0.1
                 )
             ]),
             html.Div([
@@ -254,7 +255,7 @@ def update_graph2(country3, variable2, variable3, variable4, variable5, variable
     country3_df = epidemie_df.get_country('country3')
     country3_df['infected'] = country3_df['Confirmed'].diff()
     
-    if variable6 is not None:
+    if variable6 is 'Optimisation':
     
         def sumsq_error(parameters):
             beta, gamma = parameters
@@ -274,7 +275,7 @@ def update_graph2(country3, variable2, variable3, variable4, variable5, variable
         nb_steps = len(infected_population)
         x0 = np.array([0.001, 0.1])
 
-        msol = minimize(sumsq_error, np.array([0.001, 0.1]), method='Nelder-Mead')
+        msol = minimize(sumsq_error, (0.001, 0.1), method='Nelder-Mead', callback=callback, options={'disp': True})
         variable4=msol.x[0]
         variable5=msol.x[1]
     
