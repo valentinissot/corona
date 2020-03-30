@@ -7,11 +7,29 @@ import yaml
 import numpy as np
 import pandas as pd
 
+from scipy.integrate import solve_ivp
+from scipy.optimize import minimize
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
 import dash
 import dash_core_components as dcc
+import dash_daq as daq
 import dash_html_components as html
 from dash.dependencies import Input, Output
 
+from scipy.optimize import minimize
+
+
+def get_country(self, country3):
+    return (epidemie_df[epidemie_df['Country/Region'] == country3]
+            .groupby(['Country/Region', 'day'])
+            .agg({'Confirmed': 'sum', 'Deaths': 'sum', 'Recovered': 'sum'})
+            .reset_index()
+           )
+pd.DataFrame.get_country = get_country
 
 # Lecture du fichier d'environnement
 ENV_FILE = '../env.yaml'
@@ -76,6 +94,60 @@ app.layout = html.Div([
                 #marks={i:str(date) for i, date in enumerate(epidemie_df['day'].unique())}
                 marks={i:str(i) for i, date in enumerate(epidemie_df['day'].unique())}
             )  
+        ]),
+        dcc.Tab(label='Modelisation', children=[
+            html.Div([
+                dcc.Dropdown(
+                    id='country3',
+                    options=countries
+                )
+            ]),
+            html.Div([
+                dcc.RadioItems(
+                    id='variable2',
+                    options=[
+                        {'label': 'Susceptible', 'value': 'Susceptible'},
+                        {'label': 'Recovered', 'value': 'Recovered'},
+                        {'label': 'Infected', 'value': 'Infected'}
+                    ],
+                    value='Infected',
+                    labelStyle={'display': 'inline-block'}
+                ),
+                dcc.RadioItems(
+                    id='variable6',
+                    options=[
+                        {'label': 'Optimisation', 'value': 'Optimisation'},
+                    ],
+                    value=None,
+                    labelStyle={'display': 'inline-block'}
+                ),
+                daq.NumericInput(
+                    id='variable3',
+                    label='Population',
+                    size=250,
+                    max=3000000000,
+                    value=1000
+                ),
+                daq.NumericInput(
+                    id='variable4',
+                    label='Beta',
+                    size=75,
+                    max=1,
+                    min=0.0001,
+                    value=0.01
+                ),
+                 daq.NumericInput(
+                    id='variable5',
+                    label='Gamma',
+                    size=75,
+                    max=100,
+                    min=0.001,
+                     value=0.1
+                )
+            ]),
+            html.Div([
+                dcc.Graph(id='graph2')
+            ]),  
         ]),
     ]),
 ])
@@ -161,6 +233,80 @@ def update_map(map_day):
         )
     }
 
+@app.callback(
+    Output('graph2', 'figure'),
+    [
+        Input('country3', 'value'),
+        Input('variable2', 'value'), 
+        Input('variable3', 'value'), 
+        Input('variable4', 'value'), 
+        Input('variable5', 'value'), 
+        Input('variable6', 'value'), 
+    ]
+)
+
+
+    
+
+def update_graph2(country3, variable2, variable3, variable4, variable5, variable6):
+    print(country3)
+    
+    country3_df = epidemie_df.get_country('country3')
+    country3_df['infected'] = country3_df['Confirmed'].diff()
+    
+    if variable6 is not None:
+    
+        def sumsq_error(parameters):
+            beta, gamma = parameters
+    
+            def SIRopt(t, y):
+                S = y[0]
+                I = y[1]
+                R = y[2]
+                return([-beta*S*I, beta*S*I-gamma*I, gamma*I])
+
+            solution = solve_ivp(SIRopt, [0, nb_steps-1], [total_population, 1, 0], t_eval=np.arange(0, nb_steps, 1))
+    
+            return(sum((solution.y[1]-infected_population)**2))
+
+        total_population = variable3
+        infected_population = country3_df.loc[2:]['infected']
+        nb_steps = len(infected_population)
+        x0 = np.array([0.001, 0.1])
+
+        msol = minimize(sumsq_error, np.array([0.001, 0.1]), method='Nelder-Mead')
+        variable4=msol.x[0]
+        variable5=msol.x[1]
+    
+
+    def SIR(t, y):
+        S = y[0]
+        I = y[1]
+        R = y[2]
+        return([-variable4*S*I, variable4*S*I-variable5*I, variable5*I])
+
+    
+    solution_country3 = solve_ivp(SIR, [0, 40], [variable3, 1, 0], t_eval=np.arange(0, 40, 1))
+    data_solv = {'day': solution_country3.t,'Susceptible': solution_country3.y[0], 'Infected': solution_country3.y[1], 'Recovered': solution_country3.y[2]}
+    graph3_df = pd.DataFrame(data_solv, columns = ['day','Infected','Recovered','Susceptible'])
+    
+
+        
+    #data : [dict(...graph_df...)] + ([dict(...graph2_df)] if country2 is not None else [])
+        
+    return {
+        'data': [
+            dict(
+                x=graph3_df['day'],
+                y=graph3_df[variable2],
+                type='line',
+                name=country3 if country3 is not None else 'Total'
+            )
+        ]
+    }
+
+
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=True, use_reloader=True)
+    
